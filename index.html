@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Sweet Days</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff}
+#game{position:fixed;inset:0;overflow:hidden}
+#bg{position:absolute;inset:0;transition:background 1s}
+#sprite{position:absolute;bottom:0;left:50%;height:92%;transform:translateX(-50%);transition:opacity .4s,transform .3s;pointer-events:none}
+#sprite svg{height:100%;width:auto;display:block}
+#hud{position:absolute;top:8px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:center;z-index:5;font-size:13px}
+.pill{background:rgba(0,0,0,.45);padding:5px 12px;border-radius:20px;backdrop-filter:blur(4px)}
+.btn{background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:20px;padding:6px 14px;font-size:13px}
+#box{position:absolute;left:3%;right:3%;bottom:10px;min-height:28%;background:linear-gradient(rgba(20,10,35,.78),rgba(20,10,35,.9));border:1px solid rgba(255,190,220,.5);border-radius:16px;padding:16px 20px 12px;z-index:4}
+#name{position:absolute;top:-16px;left:20px;background:#ff6fa5;padding:3px 16px;border-radius:14px;font-weight:700;font-size:14px}
+#text{font-size:clamp(14px,3.6vh,22px);line-height:1.45;white-space:pre-wrap}
+#next{position:absolute;right:16px;bottom:8px;animation:b 1s infinite;color:#ff9fc4}
+@keyframes b{50%{transform:translateY(4px)}}
+#choices{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;z-index:6;background:rgba(0,0,0,.35)}
+.ch{width:min(80%,560px);padding:12px;border-radius:14px;background:rgba(255,255,255,.92);color:#4a1a3a;font-size:clamp(14px,3.6vh,20px);font-weight:600;border:2px solid #ff6fa5;text-align:center}
+.ch:active{background:#ffd3e4}
+.screen{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:radial-gradient(circle at 30% 20%,#ff9ec7,#7b3fa0 60%,#22103a)}
+.screen h1{margin:0;font-size:clamp(34px,9vh,64px);text-shadow:0 3px 12px rgba(0,0,0,.4);letter-spacing:2px}
+.screen p{margin:0 0 8px;opacity:.9}
+.big{width:min(70%,300px);padding:12px;font-size:18px;border-radius:26px;border:0;background:#fff;color:#8a2b64;font-weight:700}
+.big:disabled{opacity:.4}
+#fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .6s;z-index:8}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="bg"></div>
+  <div id="sprite"></div>
+  <div id="fade"></div>
+  <div id="hud" class="hidden">
+    <span class="pill" id="aff"></span>
+    <span><button class="btn" id="auto">Auto</button> <button class="btn" id="saveb">Simpan</button> <button class="btn" id="menub">Menu</button></span>
+  </div>
+  <div id="box" class="hidden"><div id="name"></div><div id="text"></div><span id="next">▼</span></div>
+  <div id="choices" class="hidden"></div>
+  <div id="title" class="screen">
+    <h1>Sweet Days</h1><p>Sebuah visual novel romansa</p>
+    <button class="big" id="newb">Mulai Baru</button>
+    <button class="big" id="loadb">Lanjutkan</button>
+  </div>
+  <div id="end" class="screen hidden"><h1 id="endt"></h1><p id="endp" style="max-width:70%;text-align:center"></p><button class="big" id="endb">Ke Menu</button></div>
+</div>
+<script>
+// ---------- karakter (digambar SVG, orisinal) ----------
+function girl(c){ // c: {hair,hair2,eye,skin,outfit,mouth,blush}
+  const m={smile:'M 90 142 Q 100 152 110 142',open:'M 91 142 Q 100 158 109 142 Z',flat:'M 92 146 L 108 146',sad:'M 90 149 Q 100 140 110 149',shy:'M 92 145 Q 100 150 108 145'}[c.mouth||'smile'];
+  const eyes=c.mouth==='shy'||c.mouth==='happy'
+   ?`<path d="M72 118 Q80 108 88 118" stroke="#3a1c2e" stroke-width="4" fill="none"/><path d="M112 118 Q120 108 128 118" stroke="#3a1c2e" stroke-width="4" fill="none"/>`
+   :`<ellipse cx="80" cy="118" rx="9" ry="12" fill="#fff"/><ellipse cx="120" cy="118" rx="9" ry="12" fill="#fff"/>
+     <ellipse cx="80" cy="120" rx="7" ry="10" fill="${c.eye}"/><ellipse cx="120" cy="120" rx="7" ry="10" fill="${c.eye}"/>
+     <circle cx="82" cy="115" r="3" fill="#fff"/><circle cx="122" cy="115" r="3" fill="#fff"/>
+     <path d="M68 108 Q80 100 92 108 M108 108 Q120 100 132 108" stroke="#3a1c2e" stroke-width="3" fill="none"/>`;
+  return `<svg viewBox="0 0 200 420" xmlns="http://www.w3.org/2000/svg">
+  <path d="M30 200 Q20 330 40 410 L70 410 L70 220 Z M170 200 Q180 330 160 410 L130 410 L130 220 Z" fill="${c.hair2}"/>
+  <path d="M60 400 L66 270 Q100 255 134 270 L140 400 Z" fill="${c.outfit}"/>
+  <path d="M60 280 Q100 262 140 280 L140 300 Q100 285 60 300Z" fill="#fff" opacity=".85"/>
+  <path d="M88 268 L100 290 L112 268 Z" fill="#e8517f"/>
+  <rect x="90" y="236" width="20" height="38" fill="${c.skin}"/>
+  <path d="M65 410 L68 345 L132 345 L135 410Z" fill="${c.outfit}" opacity=".0"/>
+  <path d="M28 120 Q30 30 100 28 Q172 30 172 120 Q172 175 150 190 L50 190 Q28 175 28 120Z" fill="${c.hair}"/>
+  <ellipse cx="100" cy="125" rx="58" ry="68" fill="${c.skin}"/>
+  <path d="M42 120 Q44 52 100 48 Q156 52 158 120 Q140 72 100 80 Q60 72 42 120Z" fill="${c.hair}"/>
+  <path d="M100 48 Q80 78 52 90 Q70 62 100 48Z M100 48 Q122 76 148 92 Q134 60 100 48Z" fill="${c.hair2}" opacity=".5"/>
+  ${eyes}
+  <ellipse cx="68" cy="136" rx="10" ry="5" fill="#ff7aa0" opacity="${c.blush||.35}"/><ellipse cx="132" cy="136" rx="10" ry="5" fill="#ff7aa0" opacity="${c.blush||.35}"/>
+  <path d="${m}" stroke="#a8324f" stroke-width="3.5" fill="${c.mouth==='open'?'#d6455f':'none'}" stroke-linecap="round"/>
+  <path d="M100 128 L98 134 L102 134" stroke="#c98a80" stroke-width="2" fill="none"/>
+  <circle cx="150" cy="62" r="10" fill="#ff6fa5"/><circle cx="150" cy="62" r="4" fill="#fff"/>
+  </svg>`;
+}
+const MIKA={hair:'#7b3f2a',hair2:'#5c2c1c',eye:'#2fa38a',skin:'#ffe1d0',outfit:'#3b4a9c'};
+const FACES={normal:{},happy:{mouth:'happy'},open:{mouth:'open'},shy:{mouth:'shy',blush:.8},sad:{mouth:'sad'},flat:{mouth:'flat'}};
+const sprite=f=>girl(Object.assign({},MIKA,FACES[f]||{}));
+
+// ---------- latar ----------
+const BG={
+ school:'linear-gradient(#8fd3ff,#d6f0ff 55%,#9ccf7a 55%,#5f9f4a)',
+ class:'linear-gradient(#f4e3c4,#e6c995 60%,#a8774a 60%,#7b5232)',
+ roof:'linear-gradient(#ffb36b,#ff7a8a 50%,#6b4a9c 80%,#2a1e55)',
+ festival:'linear-gradient(#1a1040,#4a2a7a 60%,#2a1a50)',
+ home:'linear-gradient(#ffe9d6,#ffd0b0 60%,#8a5a3a 60%,#5a3a24)',
+ black:'#000'
+};
+
+// ---------- cerita ----------
+// baris: [pembicara, teks, {bg, face, show}]; pilihan: {ask:[[teks,{aff,goto}]]}
+const S={
+start:[
+ ['', 'Hari pertama semester baru. Langit cerah, dan aku, {me}, berjalan ke sekolah tanpa semangat sedikit pun.',{bg:'school',show:false}],
+ ['{me}','(Tahun ketiga. Rasanya tidak ada yang akan berubah...)'],
+ ['', 'BRUK!\nSeseorang menabrakku dari belakang, dan buku-buku berhamburan di jalan.',{}],
+ ['???','Aduh! M-maaf! Maafkan aku!',{show:true,face:'open'}],
+ ['Mika','Aku Mika, murid pindahan. Aku tersesat mencari gedung sekolah... Ini hari pertamaku.',{face:'shy'}],
+ {ask:[
+  ['"Kebetulan, aku juga mau ke sana. Ikut saja.”',{aff:2,goto:'walk'}],
+  ['"Hati-hati kalau jalan, ya."',{aff:0,goto:'walk'}],
+  ['"Gedungnya kelihatan dari sini, kok."',{aff:-1,goto:'walk'}]
+ ]}
+],
+walk:[
+ ['Mika','Terima kasih! Kamu orang pertama yang baik padaku di kota ini.',{face:'happy'}],
+ ['Mika','Boleh aku tahu namamu?'],
+ ['{me}','{me}. Kelas 3-B.'],
+ ['Mika','Wah, sekelas! Semoga kita bisa jadi teman, {me}-kun.',{face:'happy'}],
+ ['', 'Entah kenapa, jantungku berdebar sedikit lebih cepat dari biasanya.',{face:'normal'}],
+ {goto:'class'}
+],
+class:[
+ ['', 'Jam istirahat. Mika duduk di bangku sebelahku, memandangi bekalnya dengan bingung.',{bg:'class',show:true,face:'sad'}],
+ ['Mika','Aku belum kenal siapa pun, dan lupa membawa minum...'],
+ {ask:[
+  ['Berikan jusku padanya.',{aff:3,goto:'class2',flag:'juice'}],
+  ['Ajak ke kantin bersama.',{aff:2,goto:'class2'}],
+  ['"Tanya saja ke teman lain."',{aff:-2,goto:'class2'}]
+ ]}
+],
+class2:[
+ ['Mika','…',{face:'shy'}],
+ ['Mika','Kamu baik sekali. Aku jadi tidak kesepian lagi.',{face:'happy'}],
+ ['', 'Hari-hari berikutnya berlalu cepat. Kami makan siang bersama, belajar bersama, dan pulang bersama.',{bg:'school',face:'normal'}],
+ ['', 'Seminggu sebelum festival budaya, Mika menghampiriku sambil memeluk selembar brosur.',{bg:'class',face:'open'}],
+ ['Mika','{me}-kun! Festival sekolah! Kelas kita membuka kafe. Maukah kamu jadi pasanganku untuk jaga stan?'],
+ {ask:[
+  ['"Tentu saja!"',{aff:3,goto:'cafe'}],
+  ['"Boleh, asal kamu tidak memecahkan piring."',{aff:1,goto:'cafe'}],
+  ['"Aku malas keramaian..."',{aff:-2,goto:'cafe'}]
+ ]}
+],
+cafe:[
+ ['', 'Hari festival. Stan kafe kami ramai sekali.',{bg:'festival',face:'happy'}],
+ ['Mika','Satu parfait, dua teh! Siap!',{face:'open'}],
+ ['', 'PRANG!\nMika menjatuhkan nampan. Wajahnya langsung memerah.',{face:'shy'}],
+ ['Mika','A-aku memang ceroboh...'],
+ {ask:[
+  ['Bantu bereskan dan hibur dia.',{aff:3,goto:'night'}],
+  ['Tertawa kecil melihatnya.',{aff:0,goto:'night'}],
+  ['Biarkan dia membereskan sendiri.',{aff:-3,goto:'night'}]
+ ]}
+],
+night:[
+ ['', 'Malamnya, kembang api mulai menyala di langit.',{bg:'roof',face:'normal'}],
+ ['Mika','Cantik ya... Aku tidak akan lupa hari ini.',{face:'happy'}],
+ ['Mika','{me}-kun, ada yang ingin kukatakan.',{face:'shy'}],
+ {check:[
+  [8,'good'],[3,'normal'],[-99,'bad']
+ ]}
+],
+good:[
+ ['Mika','Sejak hari pertama kita bertemu, kamu selalu ada di sisiku.',{face:'shy'}],
+ ['Mika','Aku suka kamu, {me}-kun. Jadilah pacarku?',{face:'happy'}],
+ {ask:[
+  ['"Aku juga menyukaimu, Mika."',{aff:0,goto:'END_TRUE'}],
+  ['Peluk dia tanpa kata-kata.',{aff:0,goto:'END_TRUE'}]
+ ]}
+],
+normal:[
+ ['Mika','Kamu teman pertamaku di sini. Terima kasih untuk semuanya.',{face:'happy'}],
+ ['Mika','Kita tetap teman baik, kan?'],
+ ['{me}','(Mungkin aku seharusnya lebih berani...)'],
+ {goto:'END_FRIEND'}
+],
+bad:[
+ ['Mika','Aku... sepertinya salah mengira.',{face:'sad'}],
+ ['Mika','Maaf sudah merepotkanmu. Sampai jumpa di kelas.'],
+ {goto:'END_BAD'}
+]
+};
+const ENDINGS={
+ END_TRUE:['Ending: Cinta Pertama','Kalian resmi berpacaran. Musim semi berikutnya, kalian lulus dan memulai hari-hari manis bersama. TAMAT.'],
+ END_FRIEND:['Ending: Sahabat Baik','Kalian tetap berteman dekat. Mungkin suatu hari perasaan itu akan terucap. TAMAT.'],
+ END_BAD:['Ending: Jarak','Kalian perlahan menjauh. Mika menemukan teman baru, dan kamu menyisakan penyesalan. TAMAT.']
+};
+
+// ---------- engine ----------
+const $=id=>document.getElementById(id);
+const ME='Haru';
+let st={scene:'start',i:0,aff:0,bg:'school',face:'normal',show:false},busy=false,auto=null;
+const fill=s=>s.replace(/\{me\}/g,ME);
+function applyView(o){
+  if(o.bg){st.bg=o.bg;$('bg').style.background=BG[o.bg]}
+  if(o.face)st.face=o.face;
+  if('show' in o)st.show=o.show;
+  renderSprite();
+}
+function renderSprite(){const s=$('sprite');s.innerHTML=sprite(st.face);s.style.opacity=st.show?1:0}
+function updHud(){$('aff').textContent='♥ Kedekatan: '+st.aff}
+function show(){
+  const sc=S[st.scene],ln=sc[st.i];
+  $('choices').classList.add('hidden');
+  if(!ln){return}
+  if(Array.isArray(ln)){
+    applyView(ln[2]||{});
+    $('name').style.display=ln[0]?'block':'none';$('name').textContent=fill(ln[0]);
+    $('text').textContent=fill(ln[1]);$('box').classList.remove('hidden');
+    $('next').classList.remove('hidden');
+  }else if(ln.ask){
+    $('next').classList.add('hidden');
+    const c=$('choices');c.innerHTML='';c.classList.remove('hidden');
+    ln.ask.forEach(o=>{const b=document.createElement('button');b.className='ch';b.textContent=fill(o[0]);
+      b.onclick=e=>{e.stopPropagation();st.aff+=o[1].aff||0;updHud();goto(o[1].goto)};c.appendChild(b)});
+  }else if(ln.check){
+    for(const [min,t] of ln.check){if(st.aff>=min){return goto(t)}}
+  }else if(ln.goto){goto(ln.goto)}
+}
+function goto(t){
+  if(t.startsWith('END_'))return ending(t);
+  $('fade').style.opacity=1;
+  setTimeout(()=>{st.scene=t;st.i=0;show();$('fade').style.opacity=0},400);
+}
+function advance(){
+  const ln=S[st.scene][st.i];
+  if(!ln||!Array.isArray(ln))return;
+  st.i++;show();
+}
+function ending(k){
+  stopAuto();$('box').classList.add('hidden');$('hud').classList.add('hidden');$('sprite').style.opacity=0;
+  $('endt').textContent=ENDINGS[k][0];$('endp').textContent=ENDINGS[k][1];$('end').classList.remove('hidden');
+  try{localStorage.removeItem('sd_save')}catch(e){}
+}
+function start(load){
+  $('title').classList.add('hidden');$('end').classList.add('hidden');
+  $('hud').classList.remove('hidden');$('box').classList.remove('hidden');
+  if(load){try{st=JSON.parse(localStorage.getItem('sd_save'))}catch(e){}}
+  else st={scene:'start',i:0,aff:0,bg:'school',face:'normal',show:false};
+  $('bg').style.background=BG[st.bg];updHud();renderSprite();show();
+}
+function save(){try{localStorage.setItem('sd_save',JSON.stringify(st));$('saveb').textContent='Tersimpan ✓';setTimeout(()=>$('saveb').textContent='Simpan',1200)}catch(e){}}
+function stopAuto(){if(auto){clearInterval(auto);auto=null;$('auto').textContent='Auto'}}
+$('game').addEventListener('click',e=>{if(e.target.closest('button'))return;if(!$('title').classList.contains('hidden')||!$('end').classList.contains('hidden'))return;advance()});
+$('newb').onclick=()=>start(false);
+$('loadb').onclick=()=>start(true);
+$('endb').onclick=()=>{$('end').classList.add('hidden');$('title').classList.remove('hidden');chk()};
+$('saveb').onclick=save;
+$('menub').onclick=()=>{stopAuto();$('hud').classList.add('hidden');$('box').classList.add('hidden');$('choices').classList.add('hidden');$('sprite').style.opacity=0;$('title').classList.remove('hidden');chk()};
+$('auto').onclick=()=>{if(auto)return stopAuto();$('auto').textContent='Stop';auto=setInterval(advance,2500)};
+function chk(){let ok=false;try{ok=!!localStorage.getItem('sd_save')}catch(e){}$('loadb').disabled=!ok}
+chk();
+</script>
+</body>
+</html>

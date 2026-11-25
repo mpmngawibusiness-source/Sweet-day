@@ -1,0 +1,6 @@
+{
+  "appId": "com.example.sweetdays",
+  "appName": "Sweet Days",
+  "webDir": "www",
+  "android": { "allowMixedContent": false }
+}
